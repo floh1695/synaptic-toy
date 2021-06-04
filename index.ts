@@ -1,6 +1,5 @@
-// import { Layer, Network } from 'synaptic';
 import * as fs from 'fs';
-// import { PNG } from 'pngjs';
+import { PNG, PNGWithMetadata } from 'pngjs';
 
 const print = <A extends any>(x: A) => console.log(x);
 
@@ -39,42 +38,51 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
     .then(mapC(dirNameToTestCase));
 };
 
+type Pixal = {
+  red: number,
+  green: number,
+  blue: number,
+  alpha: number
+};
+const makePixal = (
+  red: number,
+  green: number,
+  blue: number,
+  alpha: number
+): Pixal => ({ red, green, blue, alpha });
+
+const printPng = (png: PNGWithMetadata) => {
+  const { height, width, data } = png;
+  for (let y: number = 0; y < height; y += 1) {
+
+    const line = [];
+    for (let x: number = 0; x < width; x += 1) {
+      const id = ((width * x) + y) * 4;
+      const pixal = makePixal(
+        data[id],
+        data[id + 1],
+        data[id + 2],
+        data[id + 3]
+      );
+
+      let alphaHex = pixal.alpha.toString(16);
+      if (alphaHex.length === 1) alphaHex = `0${alphaHex}`;
+
+      line.push(alphaHex);
+    }
+
+    print(line.join(' '));
+  }
+
+  print('');
+};
+
 getTests('grow')
-  .then(tap(forEachC(print)))
+  // .then(tap(forEachC(print)))   // Debug
   .then(forEachC(test => {
-    
+    fs.promises
+      .readFile(test.inFileName)
+      .then(PNG.sync.read)
+      .catch(error => `Error while reading png: ${error}`)
+      .then(tap(printPng));
   }));
-
-// const input: Layer = new Layer(2);
-// const hidden: Layer = new Layer(3);
-// const output: Layer = new Layer(1);
-
-// input.project(hidden);
-// hidden.project(output)
-
-// const network: Network = new Network({
-//   input,
-//   hidden: [hidden],
-//   output
-// });
-
-// const learningRate: number = 0.5;
-// for (let i = 0; i < 1000000; i += 1)
-// {
-//   network.activate([0,0]);  
-//   network.propagate(learningRate, [0]);
-
-//   network.activate([0,1]);  
-//   network.propagate(learningRate, [1]);
-
-//   network.activate([1,0]);  
-//   network.propagate(learningRate, [1]);
-
-//   network.activate([1,1]);  
-//   network.propagate(learningRate, [0]);  
-// }
-
-// console.log(network.activate([0,0]));
-// console.log(network.activate([0,1]));
-// console.log(network.activate([1,0]));
-// console.log(network.activate([1,1]));
