@@ -2,7 +2,7 @@
 import * as fs from 'fs';
 // import { PNG } from 'pngjs';
 
-const print = (x: any) => console.log(x);
+const print = <A extends any>(x: A) => console.log(x);
 
 const joinPath = (prependee: string, appendee: string): string =>
   [prependee, appendee].join('/');
@@ -17,12 +17,13 @@ const tap = <A>(f: (a: A) => void) => (a: A): A => {
   return a;
 };
 
-const inFileName = 'in.png';
-const outFileName = 'out.png';
 type TestCase = {
   inFileName: string,
   outFileName: string
 };
+
+const inFileName = 'in.png';
+const outFileName = 'out.png';
 const dirNameToTestCase = (dirName: string): TestCase => ({
   inFileName: joinPath(dirName, inFileName),
   outFileName: joinPath(dirName, outFileName)
@@ -39,7 +40,7 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
 };
 
 getTests('grow')
-  .then(tap<TestCase[]>(forEachC(print)))
+  .then(tap(forEachC(print)))
   .then(forEachC(test => {
     
   }));
