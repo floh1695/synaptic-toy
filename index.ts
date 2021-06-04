@@ -1,6 +1,8 @@
 // import { Layer, Network } from 'synaptic';
-// import { PNG } from 'pngjs';
 import * as fs from 'fs';
+// import { PNG } from 'pngjs';
+
+const print = (x: any) => console.log(x);
 
 const joinPath = (prependee: string, appendee: string): string =>
   [prependee, appendee].join('/');
@@ -8,7 +10,12 @@ const joinPathC = (prependee: string) => (appendee: string): string =>
   joinPath(prependee, appendee);
 
 const mapC = <A, B>(f: (a: A) => B) => (list: A[]) => list.map(f);
-const forEachC = <A>(f: (a: A) => void) => (list: A[]) => list.forEach(f);
+const forEachC = <A>(f: (a: A) => void) => (list: A[]): void => list.forEach(f);
+
+const tap = <A>(f: (a: A) => void) => (a: A): A => {
+  f(a);
+  return a;
+};
 
 const inFileName = 'in.png';
 const outFileName = 'out.png';
@@ -31,7 +38,11 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
     .then(mapC(dirNameToTestCase));
 };
 
-getTests('grow').then(forEachC(x => console.log(x)));
+getTests('grow')
+  .then(tap<TestCase[]>(forEachC(print)))
+  .then(forEachC(test => {
+    
+  }));
 
 // const input: Layer = new Layer(2);
 // const hidden: Layer = new Layer(3);
