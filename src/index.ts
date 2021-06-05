@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { PNG } from 'pngjs';
 
-import { pngToPixelMatrix, printPixelMatrix } from './pixel';
+import { PixelMatrix, pngToPixelMatrix, printPixelMatrix } from './pixel';
 
 const joinPath = (prependee: string, appendee: string): string =>
   [prependee, appendee].join('/');
@@ -38,13 +38,17 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
     .then(mapC(dirNameToTestCase));
 };
 
+const readMatrixFromFile = (filename: string): Promise<PixelMatrix> =>
+  fs.promises
+    .readFile(filename)
+    .then(PNG.sync.read)
+    .catch(error => `Error while reading png: ${error}`)
+    .then(pngToPixelMatrix)
+    .then(tap(printPixelMatrix));
+
 getTests('grow')
   // .then(tap(forEachC(print)))   // Debug
   .then(forEachC(async test => {
-    const inputMatrix = await fs.promises
-      .readFile(test.inFileName)
-      .then(PNG.sync.read)
-      .catch(error => `Error while reading png: ${error}`)
-      .then(pngToPixelMatrix)
-      .then(tap(printPixelMatrix));
+    const inputMatrix = await readMatrixFromFile(test.inFileName);
+    const outputMatrix = await readMatrixFromFile(test.outFileName);
   }));
