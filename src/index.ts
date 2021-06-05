@@ -44,7 +44,8 @@ const readMatrixFromFile = (filename: string): Promise<PixelMatrix> =>
     .then(PNG.sync.read)
     .catch(error => `Error while reading png: ${error}`)
     .then(pngToPixelMatrix)
-    .then(tap(printPixelMatrix));
+    // .then(tap(printPixelMatrix))  // Debug
+    ;
 
 getTests('grow')
   // .then(tap(forEachC(print)))   // Debug
