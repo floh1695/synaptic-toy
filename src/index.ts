@@ -1,7 +1,7 @@
 import * as fs from 'fs';
-import { PNG, PNGWithMetadata } from 'pngjs';
+import { PNG } from 'pngjs';
 
-const print = <A extends any>(x: A) => console.log(x);
+import { pngToPixelMatrix, printPixelMatrix } from './pixel';
 
 const joinPath = (prependee: string, appendee: string): string =>
   [prependee, appendee].join('/');
@@ -36,59 +36,6 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
     .catch(error => console.log(`Error while reading suite: ${error}`))
     .then(mapC(prependDirName))
     .then(mapC(dirNameToTestCase));
-};
-
-type Pixel = {
-  red: number,
-  green: number,
-  blue: number,
-  alpha: number
-};
-const makePixel = (
-  red: number,
-  green: number,
-  blue: number,
-  alpha: number
-): Pixel => ({ red, green, blue, alpha });
-
-type PixelMatrix = Pixel[][];
-
-const pngToPixelMatrix = (png: PNGWithMetadata): PixelMatrix => {
-  const { height, width, data } = png;
-  const matrix = [];
-  for (let y: number = 0; y < height; y += 1) {
-    const row = [];
-    for (let x: number = 0; x < width; x += 1) {
-      const id = ((width * x) + y) * 4;
-      const pixel = makePixel(
-        data[id],
-        data[id + 1],
-        data[id + 2],
-        data[id + 3]
-      );
-
-      row.push(pixel);
-    }
-
-    matrix.push(row);
-  }
-
-  return matrix;
-};
-
-const printPixelMatrix = (matrix: PixelMatrix): void => {
-  matrix.forEach(row => {
-    const alphaHexes = row.map(p => {
-      const simple = p.alpha.toString(16);
-      const full = simple.length === 1
-        ? `0${simple}`
-        : simple;
-
-      return full;
-    });
-
-    print(alphaHexes.join(' '))
-  })
 };
 
 getTests('grow')
