@@ -38,51 +38,66 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
     .then(mapC(dirNameToTestCase));
 };
 
-type Pixal = {
+type Pixel = {
   red: number,
   green: number,
   blue: number,
   alpha: number
 };
-const makePixal = (
+const makePixel = (
   red: number,
   green: number,
   blue: number,
   alpha: number
-): Pixal => ({ red, green, blue, alpha });
+): Pixel => ({ red, green, blue, alpha });
 
-const printPng = (png: PNGWithMetadata) => {
+type PixelMatrix = Pixel[][];
+
+const pngToPixelMatrix = (png: PNGWithMetadata): PixelMatrix => {
   const { height, width, data } = png;
+  const matrix = [];
   for (let y: number = 0; y < height; y += 1) {
-
-    const line = [];
+    const row = [];
     for (let x: number = 0; x < width; x += 1) {
       const id = ((width * x) + y) * 4;
-      const pixal = makePixal(
+      const pixel = makePixel(
         data[id],
         data[id + 1],
         data[id + 2],
         data[id + 3]
       );
 
-      let alphaHex = pixal.alpha.toString(16);
-      if (alphaHex.length === 1) alphaHex = `0${alphaHex}`;
-
-      line.push(alphaHex);
+      row.push(pixel);
     }
 
-    print(line.join(' '));
+    matrix.push(row);
   }
 
-  print('');
+  return matrix;
+};
+
+const printPixelMatrix = (matrix: PixelMatrix): void => {
+  matrix.forEach(row => {
+    const alphaHexes = row.map(p => {
+      const simple = p.alpha.toString(16);
+      const full = simple.length === 1
+        ? `0${simple}`
+        : simple;
+
+      return full;
+    });
+
+    print(alphaHexes.join(' '))
+  })
 };
 
 getTests('grow')
   // .then(tap(forEachC(print)))   // Debug
-  .then(forEachC(test => {
-    fs.promises
+  .then(forEachC(async test => {
+    const inputMatrix = await fs.promises
       .readFile(test.inFileName)
       .then(PNG.sync.read)
       .catch(error => `Error while reading png: ${error}`)
-      .then(tap(printPng));
+      .then(pngToPixelMatrix)
+      .then(tap(printPixelMatrix));
   }));
