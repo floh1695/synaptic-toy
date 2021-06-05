@@ -3,7 +3,7 @@ import { PNG } from 'pngjs';
 import { Layer, Network } from 'synaptic';
 
 import { curry2, forEachC, mapC, tap } from './functional';
-import { PixelMatrix, pngToPixelMatrix, printPixelMatrix } from './pixel';
+import { perceptorPointsToMatrix, pixalMatrixForPercepter, PixelMatrix, pngToPixelMatrix, printPixelMatrix } from './pixel';
 
 const joinPath = (prependee: string, appendee: string): string =>
   [prependee, appendee].join('/');
@@ -25,7 +25,7 @@ const getTests = async (suiteName: string): Promise<TestCase[]> => {
   const prependDirName = curry2(joinPath)(dirName);
   return fs.promises
     .readdir(dirName)
-    .catch(error => console.log(`Error while reading suite: ${error}`))
+    //.catch(error => console.log(`Error while reading suite: ${error}`))
     .then(mapC(prependDirName))
     .then(mapC(dirNameToTestCase));
 };
@@ -34,7 +34,7 @@ const readMatrixFromFile = (filename: string): Promise<PixelMatrix> =>
   fs.promises
     .readFile(filename)
     .then(PNG.sync.read)
-    .catch(error => `Error while reading png: ${error}`)
+    //.catch(error => `Error while reading png: ${error}`)
     .then(pngToPixelMatrix)
     // .then(tap(printPixelMatrix))  // Debug
     ;
@@ -59,25 +59,30 @@ const makePerceptor = (width: number, height: number, innerRatio: number): Netwo
 };
 
 const perceptor = makePerceptor(32, 32, 4);
+let lastOutput: number[] | null = null;
 getTests('grow')
-  // .then(tap(forEachC(print)))   // Debug
+  .then(tap(forEachC(x => console.log(x))))   // Debug
   .then(forEachC(async test => {
-    const inputMatrix = await readMatrixFromFile(test.inFileName);
-    const outputMatrix = await readMatrixFromFile(test.outFileName);
+    console.log(`starting test for: ${test.inFileName}`);
 
-    // const learningRate: number = 0.5;
-    // for (let i = 0; i < 1000000; i += 1)
-    // {
-    //   perceptor.activate([0,0]);  
-    //   perceptor.propagate(learningRate, [0]);
+    const inputPoints = await readMatrixFromFile(test.inFileName).then(pixalMatrixForPercepter);
+    const outputPoints = await readMatrixFromFile(test.outFileName).then(pixalMatrixForPercepter);
+    
+    lastOutput = outputPoints;
 
-    //   perceptor.activate([0,1]);  
-    //   perceptor.propagate(learningRate, [1]);
+    const learningRate: number = 0.2;
+    for (let i = 0; i < 10000; i += 1)
+    {
+      perceptor.activate(inputPoints);  
+      perceptor.propagate(learningRate, outputPoints);
+    }
+  }))
+  .then(() => {
+    if (lastOutput === null) return;
 
-    //   perceptor.activate([1,0]);  
-    //   perceptor.propagate(learningRate, [1]);
+    const newOutput = perceptor.activate(lastOutput);
+    const matrix = perceptorPointsToMatrix(newOutput, 32, 32);
+    printPixelMatrix(matrix)
 
-    //   perceptor.activate([1,1]);  
-    //   perceptor.propagate(learningRate, [0]);  
-    // }
-  }));
+    return matrix;
+  });
