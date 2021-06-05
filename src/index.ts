@@ -2,19 +2,11 @@ import * as fs from 'fs';
 import { PNG } from 'pngjs';
 import { Layer, Network } from 'synaptic';
 
+import { curry2, forEachC, mapC, tap } from './functional';
 import { PixelMatrix, pngToPixelMatrix, printPixelMatrix } from './pixel';
 
 const joinPath = (prependee: string, appendee: string): string =>
   [prependee, appendee].join('/');
-const curry2 = <A, B, C>(f: (a: A, b: B) => C) => (a: A) => (b: B): C => f(a, b);
-
-const mapC = <A, B>(f: (a: A) => B) => (list: A[]) => list.map(f);
-const forEachC = <A>(f: (a: A) => void) => (list: A[]): void => list.forEach(f);
-
-const tap = <A>(f: (a: A) => void) => (a: A): A => {
-  f(a);
-  return a;
-};
 
 type TestCase = {
   inFileName: string,
