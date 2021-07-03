@@ -1,88 +1,103 @@
 import * as fs from 'fs';
-import { PNG } from 'pngjs';
-import { Layer, Network } from 'synaptic';
+import { Architect } from 'synaptic';
 
-import { curry2, forEachC, mapC, tap } from './functional';
-import { perceptorPointsToMatrix, pixalMatrixForPercepter, PixelMatrix, pngToPixelMatrix, printPixelMatrix } from './pixel';
+const main = async () => {
+  const contents = await getFileContents('./data/boxGrow');
 
-const joinPath = (prependee: string, appendee: string): string =>
-  [prependee, appendee].join('/');
+  const targetHeight = 32;
+  const targetWidth = 32;
+  const tests = contents
+    .map(parseContentsToVisualTest)
+    .filter(({ meta: { height, width } }) =>
+      height === targetHeight && width === targetWidth
+    );
 
-type TestCase = {
-  inFileName: string,
-  outFileName: string
-};
-
-const inFileName = 'in.png';
-const outFileName = 'out.png';
-const dirNameToTestCase = (dirName: string): TestCase => ({
-  inFileName: joinPath(dirName, inFileName),
-  outFileName: joinPath(dirName, outFileName)
-});
-
-const getTests = async (suiteName: string): Promise<TestCase[]> => {
-  const dirName = `./data/${suiteName}`;
-  const prependDirName = curry2(joinPath)(dirName);
-  return fs.promises
-    .readdir(dirName)
-    //.catch(error => console.log(`Error while reading suite: ${error}`))
-    .then(mapC(prependDirName))
-    .then(mapC(dirNameToTestCase));
-};
-
-const readMatrixFromFile = (filename: string): Promise<PixelMatrix> =>
-  fs.promises
-    .readFile(filename)
-    .then(PNG.sync.read)
-    //.catch(error => `Error while reading png: ${error}`)
-    .then(pngToPixelMatrix)
-    // .then(tap(printPixelMatrix))  // Debug
-    ;
-
-const makePerceptor = (width: number, height: number, innerRatio: number): Network => {
-  const points = width * height * 4;
-
-  const input: Layer = new Layer(points);
-  const hidden: Layer = new Layer(points * innerRatio);
-  const output: Layer = new Layer(points);
-
-  input.project(hidden);
-  hidden.project(output)
-
-  const network: Network = new Network({
-    input,
-    hidden: [hidden],
-    output
+  const pixelCount = targetHeight * targetWidth;
+  const hiddenFactor = 0.5;
+  const hiddenCount = pixelCount * hiddenFactor;
+  const totalNeurons = (pixelCount * 2) + hiddenCount;
+  const connections = totalNeurons * 2;
+  const gates = connections / 4;
+  console.log({
+    pixelCount,
+    hiddenFactor,
+    hiddenCount,
+    totalNeurons,
+    connections,
+    gates
   });
+  const transformer = new Architect.Liquid(
+    pixelCount, hiddenCount, pixelCount, connections, gates
+  );
 
-  return network;
+  tests.forEach(test => console.log(test));
+  console.log(transformer);
 };
 
-const perceptor = makePerceptor(32, 32, 4);
-let lastOutput: number[] | null = null;
-getTests('grow')
-  .then(tap(forEachC(x => console.log(x))))   // Debug
-  .then(forEachC(async test => {
-    console.log(`starting test for: ${test.inFileName}`);
+const getFileContents =  async (directoryPath: string): Promise<string[]> => {
+  const plainPaths = await fs.promises
+    .readdir(directoryPath);
+  const fullPaths = plainPaths
+    .map(path => `${directoryPath}/${path}`);
 
-    const inputPoints = await readMatrixFromFile(test.inFileName).then(pixalMatrixForPercepter);
-    const outputPoints = await readMatrixFromFile(test.outFileName).then(pixalMatrixForPercepter);
-    
-    lastOutput = outputPoints;
+  const filePromises = fullPaths
+    .map(path => fs.promises.readFile(path));
+  const files = await Promise.all(filePromises);
+  const contents = files.map(file => file.toString());
 
-    const learningRate: number = 0.2;
-    for (let i = 0; i < 10000; i += 1)
-    {
-      perceptor.activate(inputPoints);  
-      perceptor.propagate(learningRate, outputPoints);
-    }
-  }))
-  .then(() => {
-    if (lastOutput === null) return;
+  return contents;
+};
 
-    const newOutput = perceptor.activate(lastOutput);
-    const matrix = perceptorPointsToMatrix(newOutput, 32, 32);
-    printPixelMatrix(matrix)
+type VisualTest = {
+  meta: {
+    height: number,
+    width: number
+  },
+  in: string[][],
+  out: string[][]
+};
 
-    return matrix;
-  });
+const parseContentsToVisualTest = (content: string): VisualTest => {
+  const extractRaw = (tag: string): string => {
+    const regex = tagRegex(tag);
+    const match = content.match(regex);
+
+    const raw = match === null
+      ? ''
+      : match[1];
+
+    return raw;
+  };
+
+  const rawMeta = extractRaw('meta');
+  const meta = JSON.parse(rawMeta);
+
+  const inOut = ['in', 'out']
+    .map(extractRaw)
+    .map(parseMatrix);
+
+  const test = {
+    meta,
+    in: inOut[0],
+    out: inOut[1]
+  };
+
+  return test;
+};
+
+const tagRegex = (tag: string): RegExp =>
+  new RegExp(
+    `^\\<${tag}\\>\\s*\\n([\\s\\S]*)\\n\\<\\/${tag}\\>\\s*$`,
+    'm'
+  );
+
+const parseMatrix = (image: string): string[][] => {
+  const rawLines = image.split(/\r\n?/);
+  const lines = rawLines
+    .map(line => line.split(''))
+    .filter(line => line.length > 0);
+
+  return lines;
+};
+
+main();
